@@ -46,6 +46,9 @@ assert(vendorResolver.isCameraVendor('Hikvision Digital Technology') === true, '
 assert(vendorResolver.isCameraVendor('Apple, Inc.') === false, 'Apple recognized as non-camera vendor');
 assert(vendorResolver.isCameraVendor('TP-Link') === false, 'Generic TP-Link router excluded from camera classification');
 assert(vendorResolver.isCameraVendor('TP-Link Tapo C200') === true, 'TP-Link Tapo camera explicitly recognized');
+assert(vendorResolver.isCameraVendor('TP-Link', { model: 'VIGI' }) === true, 'TP-Link with VIGI model context recognized as camera');
+assert(vendorResolver.isCameraVendor('TP-Link', { openPorts: [{ port: 554 }] }) === true, 'TP-Link with RTSP port context recognized as camera');
+assert(vendorResolver.isCameraVendor('TP-Link', { model: 'Deco X50' }) === false, 'TP-Link Deco router context excluded');
 
 // Test 3: Port Identification
 console.log('\n[Test Suite 3: Video Port Identification]');

@@ -30,7 +30,7 @@ export default {
     let score = 30; // Base score for responsive LAN endpoint
 
     // 1. IEEE OUI Vendor Match (+35%)
-    if (device.vendor && vendorResolver.isCameraVendor(device.vendor)) {
+    if (device.vendor && vendorResolver.isCameraVendor(device.vendor, device)) {
       score += 35;
     }
 

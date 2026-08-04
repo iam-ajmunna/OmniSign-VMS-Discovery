@@ -38,9 +38,10 @@ export default {
    * Evaluates if a given vendor string matches a known camera manufacturer.
    * Distinguishes camera sub-brands (e.g. Tapo, VIGI) from general networking hardware (routers/switches).
    * @param {string} vendor 
+   * @param {Object} [deviceContext] - Optional device details (ports, model, hostname) for context-aware filtering
    * @returns {boolean}
    */
-  isCameraVendor(vendor) {
+  isCameraVendor(vendor, deviceContext = null) {
     if (!vendor) return false;
     const vLower = vendor.toLowerCase().trim();
 
@@ -54,9 +55,20 @@ export default {
       }
     }
 
-    // Exclude general networking equipment vendors (routers, switches, APs)
+    // Exclude general networking equipment vendors (routers, switches, APs) unless they display camera characteristics
     const generalNetworkingVendors = ['apple', 'intel', 'tp-link', 'tplink', 'netgear', 'asus', 'cisco', 'linksys', 'd-link', 'dlink', 'belkin', 'mikrotik'];
     if (generalNetworkingVendors.some(brand => vLower === brand || vLower.startsWith(brand + ' '))) {
+      if (deviceContext) {
+        const ports = deviceContext.openPorts || (deviceContext.rawPayloads && deviceContext.rawPayloads.openPorts) || [];
+        const hasCameraPorts = ports.some(p => [554, 3702, 8000, 34567, 8899].includes(p.port));
+        const textStr = ((deviceContext.hostname || '') + ' ' + (deviceContext.model || '')).toLowerCase();
+        const hasCameraKeywords = ['camera', 'ipc', 'netcam', 'onvif', 'rtsp', 'vigi', 'tapo'].some(k => textStr.includes(k));
+        const hasCameraDiscovery = deviceContext.discoveryMethods && (deviceContext.discoveryMethods.includes('ONVIF') || deviceContext.discoveryMethods.includes('mDNS'));
+
+        if (hasCameraPorts || hasCameraKeywords || hasCameraDiscovery) {
+          return true; // Identified as a camera from a generic networking vendor (e.g. TP-Link VIGI)
+        }
+      }
       return false;
     }
 
