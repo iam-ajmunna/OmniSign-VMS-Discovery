@@ -50,6 +50,19 @@ export default function App() {
       }
     });
 
+    es.addEventListener('device_removed', (e) => {
+      try {
+        const { id } = JSON.parse(e.data);
+        setDevices((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      } catch (err) {
+        console.error('Failed to parse device_removed event:', err);
+      }
+    });
+
     es.addEventListener('session', (e) => {
       try {
         const sessionData = JSON.parse(e.data);

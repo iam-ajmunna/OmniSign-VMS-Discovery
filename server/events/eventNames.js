@@ -17,6 +17,7 @@ export const Events = Object.freeze({
   // Device Mutation/Discovery Events
   DEVICE_FOUND: 'device:found',
   DEVICE_UPDATED: 'device:updated',
+  DEVICE_REMOVED: 'device:removed',
 
   // Telemetry Log Broadcast
   LOG_EMITTED: 'log:emitted'

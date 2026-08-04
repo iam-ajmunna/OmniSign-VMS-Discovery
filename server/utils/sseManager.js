@@ -112,6 +112,11 @@ class SseManager {
       this.broadcast('device', device);
     });
 
+    // Pipe device removal signals (e.g. key promotion from IP-key to MAC-key)
+    eventBus.on(Events.DEVICE_REMOVED, ({ id }) => {
+      this.broadcast('device_removed', { id });
+    });
+
     // Pipe structured console logs
     eventBus.on(Events.LOG_EMITTED, (log) => {
       this.broadcast('log', log);

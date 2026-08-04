@@ -65,6 +65,7 @@ class DeviceStore {
 
     if (targetId !== id) {
       this.devices.delete(id);
+      eventBus.emit(Events.DEVICE_REMOVED, { id });
     }
 
     this.devices.set(targetId, updated);
