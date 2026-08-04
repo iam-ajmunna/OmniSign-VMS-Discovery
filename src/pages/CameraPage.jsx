@@ -94,19 +94,19 @@ export default function CameraPage() {
       {/* Workspace Grid */}
       <div className="workspace-grid">
 
-        {/* Column 1: Live Player (full width top) */}
-        <div className="workspace-col-full">
-          <LivePlayer device={device} health={health} />
-        </div>
-
-        {/* Column 2: Left — Health Modules */}
+        {/* Left Column — Streaming & Host Telemetry */}
         <div className="workspace-col-left">
-          <NetworkHealth health={health} />
-          <StreamHealth health={health} />
+          <LivePlayer device={device} health={health} />
+          
+          <div className="workspace-subgrid">
+            <NetworkHealth health={health} />
+            <StreamHealth health={health} />
+          </div>
+          
           <PerformancePanel health={health} />
         </div>
 
-        {/* Column 3: Right — Info + Image + Events */}
+        {/* Right Column — Camera Details & Event Log */}
         <div className="workspace-col-right">
           <CameraInfo device={device} />
           <ImageHealth health={health} />

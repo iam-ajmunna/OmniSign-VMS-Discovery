@@ -33,7 +33,7 @@ export default function EventTimeline({ events = [] }) {
   ];
 
   return (
-    <div className="ws-module ws-module-timeline">
+    <div className="ws-module ws-module-timeline ws-module-stretch">
       <div className="ws-module-header">
         <h3>📋 Event Timeline</h3>
         <span className="evt-count">{events.length} event{events.length !== 1 ? 's' : ''}</span>

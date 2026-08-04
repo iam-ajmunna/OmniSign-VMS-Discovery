@@ -850,21 +850,36 @@ body {
 /* ----- Workspace Grid ----- */
 .workspace-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.35fr 1fr;
   grid-template-rows: auto;
-  gap: 1rem;
-  padding: 1rem 1.25rem 2rem;
+  gap: 1.25rem;
+  padding: 1rem 1.5rem 2.5rem;
   flex: 1;
+  align-items: stretch;
 }
 
-.workspace-col-full {
-  grid-column: 1 / -1;
+.workspace-subgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
 }
+
 .workspace-col-left,
 .workspace-col-right {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
+}
+
+.ws-module-stretch {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.ws-module-stretch .ws-module-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ----- Module Card ----- */
@@ -1156,7 +1171,18 @@ body {
 .check-fail    { color: var(--color-danger); background: rgba(239,68,68,0.1); }
 
 /* ----- Event Timeline ----- */
-.ws-module-timeline { }
+.ws-module-timeline {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 200px;
+  max-height: 320px;
+}
+.ws-module-timeline .timeline-body {
+  flex: 1;
+  max-height: none;
+  min-height: 120px;
+}
 .evt-count {
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -1247,10 +1273,14 @@ body {
   .workspace-grid {
     grid-template-columns: 1fr;
   }
-  .workspace-col-full,
   .workspace-col-left,
   .workspace-col-right {
     grid-column: 1 / -1;
+  }
+}
+@media (max-width: 768px) {
+  .workspace-subgrid {
+    grid-template-columns: 1fr;
   }
 }
 
