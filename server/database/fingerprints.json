@@ -1,0 +1,34 @@
+{
+  "httpServerHeaders": [
+    { "pattern": "Hikvision-Webs", "vendor": "Hikvision", "confidenceBonus": 35 },
+    { "pattern": "Dahua-Webs", "vendor": "Dahua Technology", "confidenceBonus": 35 },
+    { "pattern": "AXIS", "vendor": "Axis Communications", "confidenceBonus": 35 },
+    { "pattern": "gSOAP", "vendor": "ONVIF Camera", "confidenceBonus": 20 },
+    { "pattern": "thttpd", "vendor": "IP Camera", "confidenceBonus": 15 },
+    { "pattern": "mini_httpd", "vendor": "IP Camera", "confidenceBonus": 15 }
+  ],
+  "wwwAuthenticateRealms": [
+    { "pattern": "Hikvision", "vendor": "Hikvision", "confidenceBonus": 40 },
+    { "pattern": "Dahua", "vendor": "Dahua Technology", "confidenceBonus": 40 },
+    { "pattern": "AXIS", "vendor": "Axis Communications", "confidenceBonus": 40 },
+    { "pattern": "Wisenet", "vendor": "Hanwha Vision", "confidenceBonus": 40 },
+    { "pattern": "Reolink", "vendor": "Reolink", "confidenceBonus": 40 },
+    { "pattern": "Tapo", "vendor": "TP-Link Tapo", "confidenceBonus": 40 }
+  ],
+  "onvifProfiles": [
+    { "pattern": "NetworkVideoTransmitter", "vendor": "ONVIF Camera", "confidenceBonus": 30 },
+    { "pattern": "DeviceBinding", "vendor": "ONVIF Device", "confidenceBonus": 20 }
+  ],
+  "ssdpHeaders": [
+    { "pattern": "HIKVISION", "vendor": "Hikvision", "confidenceBonus": 35 },
+    { "pattern": "Dahua", "vendor": "Dahua Technology", "confidenceBonus": 35 },
+    { "pattern": "Tapo", "vendor": "TP-Link Tapo", "confidenceBonus": 35 },
+    { "pattern": "Reolink", "vendor": "Reolink", "confidenceBonus": 35 },
+    { "pattern": "Xiongmai", "vendor": "Xiongmai (XMeye)", "confidenceBonus": 35 }
+  ],
+  "mdnsServices": [
+    { "pattern": "_rtsp._tcp.local", "vendor": "RTSP Video Camera", "confidenceBonus": 25 },
+    { "pattern": "_axis-video._tcp.local", "vendor": "Axis Communications", "confidenceBonus": 40 },
+    { "pattern": "_onvif._tcp.local", "vendor": "ONVIF Camera", "confidenceBonus": 35 }
+  ]
+}

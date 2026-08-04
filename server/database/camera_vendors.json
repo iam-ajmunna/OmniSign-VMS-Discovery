@@ -1,0 +1,124 @@
+{
+  "hikvision": {
+    "canonicalName": "Hikvision",
+    "aliases": ["Hikvision Digital Technology", "EZVIZ", "HiWatch"],
+    "ouis": ["bc1485", "002363", "105bfa", "1868cb", "24acac", "2857be", "346f24", "4447cc", "4419b6", "4c11bf", "541473", "5803fb", "608882", "70b3d5", "742e94", "80e650", "849a40", "8c1f64", "94e1ac", "a0bd1d", "a41437", "ac220b", "b8a386", "c42f90", "d4529d", "e49339", "f085c1", "f4a4ad"],
+    "modelPrefixes": ["DS-2CD", "DS-2DE", "DS-2DF", "DS-760", "DS-770", "DS-960", "CS-C6"],
+    "defaultPorts": [554, 80, 8000, 3702],
+    "onvifSupported": true,
+    "rtspSupported": true,
+    "rtspTemplates": [
+      { "label": "Main Stream (H.264/H.265)", "path": "/Streaming/Channels/101" },
+      { "label": "Sub Stream (Mobile)", "path": "/Streaming/Channels/102" }
+    ],
+    "website": "https://www.hikvision.com"
+  },
+  "dahua": {
+    "canonicalName": "Dahua Technology",
+    "aliases": ["Zhejiang Dahua Technology", "Imou", "Lorex", "CP Plus", "Amcrest"],
+    "ouis": ["00023b", "001a07", "14a629", "3cef8c", "9002a9", "b4a382", "bcc342", "d850e6", "e422a5", "f4b85e", "f85b9c"],
+    "modelPrefixes": ["IPC-HFW", "IPC-HDW", "SD49225", "NVR410", "NVR521"],
+    "defaultPorts": [554, 80, 3702, 37777],
+    "onvifSupported": true,
+    "rtspSupported": true,
+    "rtspTemplates": [
+      { "label": "Main Stream", "path": "/cam/realmonitor?channel=1&subtype=0" },
+      { "label": "Sub Stream", "path": "/cam/realmonitor?channel=1&subtype=1" }
+    ],
+    "website": "https://www.dahuasecurity.com"
+  },
+  "axis": {
+    "canonicalName": "Axis Communications",
+    "aliases": ["Axis"],
+    "ouis": ["00408c", "accc8e", "b8a44f", "e82725"],
+    "modelPrefixes": ["M10", "M30", "P13", "P14", "P32", "Q35", "Q60"],
+    "defaultPorts": [554, 80, 443],
+    "onvifSupported": true,
+    "rtspSupported": true,
+    "rtspTemplates": [
+      { "label": "Main Stream", "path": "/axis-media/media.amp" }
+    ],
+    "website": "https://www.axis.com"
+  },
+  "hanwha": {
+    "canonicalName": "Hanwha Vision",
+    "aliases": ["Samsung Techwin", "Hanwha Techwin", "Wisenet"],
+    "ouis": ["0000f0", "000918", "00166c", "0021d9", "0024e9", "0026e0", "701a04"],
+    "modelPrefixes": ["XNV", "XND", "XNO", "QNV", "QND", "PNO", "PNV"],
+    "defaultPorts": [554, 80, 4520, 3702],
+    "onvifSupported": true,
+    "rtspSupported": true,
+    "rtspTemplates": [
+      { "label": "Main Stream", "path": "/profile2/media.smp" }
+    ],
+    "website": "https://www.hanwhavision.com"
+  },
+  "uniview": {
+    "canonicalName": "Uniview",
+    "aliases": ["UNV", "Zhejiang Uniview Technologies"],
+    "ouis": ["209b5c", "6c8104", "706979", "7c2586"],
+    "modelPrefixes": ["IPC2122", "IPC3612", "IPC6322", "NVR301"],
+    "defaultPorts": [554, 80, 81, 3702],
+    "onvifSupported": true,
+    "rtspSupported": true,
+    "rtspTemplates": [
+      { "label": "Main Stream", "path": "/unicast/c1/s0/live" },
+      { "label": "Sub Stream", "path": "/unicast/c1/s1/live" }
+    ],
+    "website": "https://www.uniview.com"
+  },
+  "reolink": {
+    "canonicalName": "Reolink",
+    "aliases": ["Shenzhen Reolink Technology"],
+    "ouis": ["ec71db", "a408ea"],
+    "modelPrefixes": ["RLC-410", "RLC-520", "RLC-810", "E1 Pro", "TrackMix"],
+    "defaultPorts": [554, 80, 9000],
+    "onvifSupported": true,
+    "rtspSupported": true,
+    "rtspTemplates": [
+      { "label": "Main Stream", "path": "/h264Preview_01_main" },
+      { "label": "Sub Stream", "path": "/h264Preview_01_sub" }
+    ],
+    "website": "https://reolink.com"
+  },
+  "tplink": {
+    "canonicalName": "TP-Link Tapo / VIGI",
+    "aliases": ["Tapo", "VIGI", "TP-Link Tapo", "TP-Link VIGI"],
+    "ouis": ["001478", "0019e0", "002129", "18d6c7", "30de4b", "50c7bf", "54af97", "6032b1", "704f57", "74da38", "98dab4", "a42bb0", "b09575", "c025e9", "c46e1f", "d807b6", "da7063", "da6d9f", "e848b8", "ec172f", "f4f26d"],
+    "modelPrefixes": ["C200", "C310", "C320WS", "TC70", "VIGI C340"],
+    "defaultPorts": [554, 2020, 80],
+    "onvifSupported": true,
+    "rtspSupported": true,
+    "rtspTemplates": [
+      { "label": "Main Stream (HD)", "path": "/stream1" },
+      { "label": "Sub Stream (SD)", "path": "/stream2" }
+    ],
+    "website": "https://www.tapo.com"
+  },
+  "xiongmai": {
+    "canonicalName": "Xiongmai (XMeye)",
+    "aliases": ["XMeye", "Shenzhen Xiongmai"],
+    "ouis": ["001217", "001216", "001218"],
+    "modelPrefixes": ["AHB7004T", "NBD8008R", "IPG-50H20P"],
+    "defaultPorts": [34567, 554, 80],
+    "onvifSupported": true,
+    "rtspSupported": true,
+    "rtspTemplates": [
+      { "label": "Main Stream", "path": "/user=admin_password=_channel=0_stream=0.sdp" }
+    ],
+    "website": "https://www.xiongmaitech.com"
+  },
+  "ubiquiti": {
+    "canonicalName": "Ubiquiti UniFi Protect",
+    "aliases": ["UniFi Protect", "Ubiquiti Inc."],
+    "ouis": ["00156d", "0418d6", "18e829", "24a43c", "68d79a", "70a741"],
+    "modelPrefixes": ["UVC-G3", "UVC-G4", "UVC-G5", "AI Bullet", "AI Pro"],
+    "defaultPorts": [7447, 554, 443],
+    "onvifSupported": true,
+    "rtspSupported": true,
+    "rtspTemplates": [
+      { "label": "UniFi RTSP Stream", "path": "/live/main" }
+    ],
+    "website": "https://ui.com"
+  }
+}
