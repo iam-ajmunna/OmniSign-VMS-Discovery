@@ -117,6 +117,15 @@ class SseManager {
       this.broadcast('device_removed', { id });
     });
 
+    // Pipe camera health monitoring snapshots and events
+    eventBus.on(Events.HEALTH_UPDATE, (payload) => {
+      this.broadcast('health_update', payload);
+    });
+
+    eventBus.on(Events.CAMERA_EVENT, (payload) => {
+      this.broadcast('camera_event', payload);
+    });
+
     // Pipe structured console logs
     eventBus.on(Events.LOG_EMITTED, (log) => {
       this.broadcast('log', log);

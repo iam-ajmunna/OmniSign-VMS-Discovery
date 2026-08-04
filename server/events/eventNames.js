@@ -19,6 +19,10 @@ export const Events = Object.freeze({
   DEVICE_UPDATED: 'device:updated',
   DEVICE_REMOVED: 'device:removed',
 
+  // Camera Health Monitoring Events
+  HEALTH_UPDATE: 'health:update',
+  CAMERA_EVENT: 'camera:event',
+
   // Telemetry Log Broadcast
   LOG_EMITTED: 'log:emitted'
 });

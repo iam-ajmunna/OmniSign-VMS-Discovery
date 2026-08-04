@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 
-export default function CameraCard({ device, onSelectDevice }) {
+/**
+ * Compact camera discovery card shown in the Discovery Dashboard grid.
+ * Provides quick RTSP copy, ONVIF details modal, and workspace navigation.
+ */
+export default function CameraCard({ device, onSelectDevice, onOpenWorkspace }) {
   const [copied, setCopied] = useState(false);
   if (!device) return null;
+
   const methods = Array.isArray(device.discoveryMethods) ? device.discoveryMethods : [];
 
   const handleCopyRtsp = () => {
@@ -33,8 +38,11 @@ export default function CameraCard({ device, onSelectDevice }) {
         <button className="btn-card-action" onClick={handleCopyRtsp}>
           {copied ? 'Copied RTSP!' : 'Copy RTSP Stream'}
         </button>
-        <button className="btn-card-action btn-card-primary" onClick={() => onSelectDevice(device)}>
+        <button className="btn-card-action" onClick={() => onSelectDevice(device)}>
           ONVIF & Details
+        </button>
+        <button className="btn-card-action btn-card-primary" onClick={() => onOpenWorkspace(device)}>
+          Open Workspace →
         </button>
       </div>
     </div>

@@ -20,6 +20,12 @@ class SessionCoordinator {
     /** @type {NodeJS.Timeout|null} */
     this.durationTrackerId = null;
 
+    /** @type {NodeJS.Timeout|null} */
+    this.nextScanTimeoutId = null;
+
+    /** @type {boolean} */
+    this.isAutoScanning = false;
+
     // Initialize Milestone 5 Aggregation Pipeline Listener
     aggregatorCoordinator.init();
   }
@@ -28,9 +34,10 @@ class SessionCoordinator {
    * Initiates a new network scan session and executes registered scanners concurrently.
    * Enforces scanning locks to prevent concurrent executions.
    * 
+   * @param {boolean} [isAutoCycle=false] - Whether this is a scheduled background re-scan
    * @returns {import('../models/scanSession.js').ScanSession} The created session object
    */
-  startScan() {
+  startScan(isAutoCycle = false) {
     if (this.activeSession) {
       logger.warn('Scan start rejected: another session is currently running.');
       throw new Error('A scan session is already in progress.');
@@ -55,10 +62,19 @@ class SessionCoordinator {
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
     
-    // Flush the device store cache
-    deviceStore.clear();
+    // Clear pending scheduled re-scans
+    if (this.nextScanTimeoutId) {
+      clearTimeout(this.nextScanTimeoutId);
+      this.nextScanTimeoutId = null;
+    }
 
-    logger.info(`SessionCoordinator: Initiated new scan session ID: ${this.activeSession.id}`);
+    if (!isAutoCycle) {
+      this.isAutoScanning = true;
+      // Flush the device store cache only on manual fresh scans
+      deviceStore.clear();
+    }
+
+    logger.info(`SessionCoordinator: Initiated new scan session ID: ${this.activeSession.id} (AutoCycle: ${isAutoCycle})`);
     eventBus.emit(Events.SCAN_STARTED, this.activeSession);
 
     // Setup active duration tracker polling
@@ -121,18 +137,24 @@ class SessionCoordinator {
    * Triggers abort signal listeners to close open ports/sockets.
    */
   cancelScan() {
-    if (!this.activeSession) {
-      logger.warn('Scan cancellation request rejected: no active session to cancel.');
-      throw new Error('No active scan session to cancel.');
+    this.isAutoScanning = false;
+    if (this.nextScanTimeoutId) {
+      clearTimeout(this.nextScanTimeoutId);
+      this.nextScanTimeoutId = null;
     }
 
+    if (!this.activeSession) {
+      logger.warn('Scan cancellation request rejected: no active session to cancel.');
+      return;
+    }
+ 
     logger.warn(`SessionCoordinator: Cancelling Scan Session: ${this.activeSession.id}`);
     
     // Cancel scanners via AbortController signal
     if (this.abortController) {
       this.abortController.abort();
     }
-
+ 
     this.cleanupSession('cancelled');
   }
 
@@ -152,7 +174,7 @@ class SessionCoordinator {
    */
   cleanupSession(endStatus) {
     if (!this.activeSession) return;
-
+ 
     // Clear timers
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
@@ -162,7 +184,7 @@ class SessionCoordinator {
       clearInterval(this.durationTrackerId);
       this.durationTrackerId = null;
     }
-
+ 
     // Capture stats from store
     const foundDevices = deviceStore.getAll();
     
@@ -171,7 +193,7 @@ class SessionCoordinator {
     this.activeSession.stats.totalDiscovered = foundDevices.length;
     // Camera filter placeholder (will use score-calculator in Milestone 6)
     this.activeSession.stats.camerasCount = foundDevices.length; 
-
+ 
     // Calculate dynamic hits based on discovery methods
     const hits = {};
     foundDevices.forEach(dev => {
@@ -180,7 +202,7 @@ class SessionCoordinator {
       });
     });
     this.activeSession.stats.protocolHits = hits;
-
+ 
     // Broadcast change
     const finishedSession = { ...this.activeSession };
     
@@ -189,10 +211,25 @@ class SessionCoordinator {
     } else {
       eventBus.emit(Events.SCAN_FINISHED, finishedSession);
     }
-
+ 
     // Reset core handles
     this.activeSession = null;
     this.abortController = null;
+
+    // Schedule next cycle if auto-scanning is enabled
+    if (this.isAutoScanning && endStatus === 'completed') {
+      logger.info('SessionCoordinator: Scheduling next auto-scan cycle in 60 seconds.');
+      this.nextScanTimeoutId = setTimeout(() => {
+        if (this.isAutoScanning) {
+          try {
+            this.startScan(true);
+          } catch (e) {
+            logger.error(`SessionCoordinator: Failed auto-scan: ${e.message}`);
+          }
+        }
+      }, 60000);
+      this.nextScanTimeoutId.unref();
+    }
   }
 
   /**

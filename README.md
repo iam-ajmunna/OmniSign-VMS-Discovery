@@ -1,8 +1,10 @@
-# OmniSight VMS IP Camera Discovery
+# OmniSight VMS IP Camera Discovery (v2.0)
 
-> **Enterprise-grade multi-protocol network discovery tool for local RTSP/ONVIF IP security cameras.**
+> **Enterprise-grade multi-protocol network discovery tool and live health monitoring platform for local RTSP/ONVIF IP security cameras.**
 
 OmniSight VMS Discovery is a high-performance system that scans subnets using 5 parallel discovery protocols to identify physical security cameras, resolve manufacturer hardware specs, compute certainty ratings, generate RTSP stream URLs, and export network audit reports.
+
+**Version 2.0 introduces the Camera Workspace**, turning a simple discovery utility into a professional camera monitoring and stream diagnostics dashboard.
 
 ---
 
@@ -28,6 +30,15 @@ Execute the unit and integration test suite:
 ```bash
 npm test
 ```
+
+---
+
+## 🚀 Key v2.0 Monitoring Capabilities
+* **Camera Workspace**: Dedicated diagnostic space per camera containing information panels, live feed, stream stats, network status, image health, and events.
+* **Health Engine**: Central scheduler implementing multi-probed monitoring intervals (ICMP/TCP ping, RTSP ports, ONVIF ports) with automatic status transition loggers.
+* **HLS Live Transcoder**: Spawns ffmpeg sessions to transcode RTSP into browser-ready HLS files, falling back to a mock CDN demo stream when camera is offline or ffmpeg is missing.
+* **Dynamic Performance Telemetry**: Simulated ONVIF system details (CPU, memory, uptime, temperature) mapped live when cameras are connected.
+* **Image Health Checks**: Architecture-ready slots for computer vision checks (blur, blackout, obstruction, etc.).
 
 ---
 
@@ -63,7 +74,7 @@ Aborts an in-progress scan session immediately via `AbortController`.
 
 ### Live SSE Event Stream
 `GET /api/v1/scan/stream`
-Server-Sent Events stream delivering real-time logs, scanner progress, and discovered device cards.
+Server-Sent Events stream delivering real-time logs, scanner progress, discovered devices, and live health metrics.
 
 ### RTSP Stream Generator
 `POST /api/v1/camera/rtsp-urls`
@@ -73,6 +84,11 @@ Generates brand-tailored RTSP stream URLs for Hikvision, Dahua, Axis, Reolink, T
 `POST /api/v1/camera/onvif-auth`
 Performs authenticated WS-Security SOAP probes to retrieve camera firmware, model, and serial details.
 
+### HLS Live Streaming Control
+* `POST /api/v1/stream/:id/start`: Triggers ffmpeg transcoding.
+* `POST /api/v1/stream/:id/stop`: Terminates transcoding process.
+* `GET /api/v1/stream/:id/:filename`: Serves HLS playlists and segments.
+
 ---
 
 ## 📁 Repository Structure
@@ -80,16 +96,21 @@ Performs authenticated WS-Security SOAP probes to retrieve camera firmware, mode
 ```
 camera/
 ├── server/
-│   ├── aggregator/     # Deduplication & property merger services
+│   ├── aggregator/     # Deduplication, DeviceStore, and property merger
+│   ├── api/            # Express routers for devices, monitoring, and streaming
 │   ├── config/         # Centralized network & protocol configuration
 │   ├── events/         # Node.js EventBus pub/sub event channels
 │   ├── logger/         # Structured terminal & SSE logger
+│   ├── monitoring/     # Ping, TCP, RTSP, ONVIF health engine & stream manager
 │   ├── registry/       # Explicit scanner module registry
 │   ├── scanners/       # Live ARP, Ping, SSDP, mDNS, ONVIF modules
 │   ├── services/       # Session coordinator, vendor resolver, ONVIF auth
 │   └── utils/          # OUI lookup database, input sanitizer, RTSP helper
 ├── src/
 │   ├── components/     # React Header, ProgressGrid, CameraGrid, DevConsole, OnvifModal
+│   │   └── camera/     # Workspace panels: LivePlayer, EventTimeline, MetricCard, StreamHealth...
+│   ├── pages/          # SPA Pages: DiscoveryPage, CameraPage
+│   ├── hooks/          # useCameraHealth and useEventSource utilities
 │   └── utils/          # CSV & JSON browser export helpers
 └── tests/              # Automated unit test suite
 ```
@@ -98,9 +119,9 @@ camera/
 
 ## 🔒 Security & Reliability Standards
 
-- **Zero Command Injection**: All system commands use `execFile` with explicit argument arrays (`shell: false`).
-- **Resource Lifecycle**: All UDP sockets, TCP sockets, timers, and SSE streams are released upon scan completion or cancellation.
-- **Graceful Shutdown**: Intercepts `SIGINT` / `SIGTERM` signals to terminate background processes cleanly.
+- **Zero Command Injection**: All system commands use `execFile` or parameterized arguments.
+- **Resource Lifecycle**: All UDP sockets, TCP sockets, timers, SSE streams, and child transcode processes are released upon session termination or cancellation.
+- **Graceful Shutdown**: Intercepts `SIGINT` / `SIGTERM` signals to terminate background processes and transcoding daemons cleanly.
 
 ---
 

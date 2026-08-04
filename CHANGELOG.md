@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-08-04
+
+### Added
+- **Camera Workspace Page**: Rich, multi-panel diagnostic interface per camera.
+- **Client Routing SPA Foundation**: Configured `react-router-dom` in the client with proper history-fallback on Vite (`appType: 'spa'`).
+- **Health Engine**: Centralized, memory-leak-safe orchestrator with automated interval scheduler (`healthScheduler`) and status transition logger.
+- **Multi-Probed Network Health**: Integrated TCP ping, port scanning, dynamic RTSP connection validation, and ONVIF unauthenticated status checks.
+- **Granular Event Logging**: Tracks and streams connection updates, warnings, and error events to the event timeline in real-time.
+- **HLS Transcoder & Streaming Server**: Integrated `ffmpeg` RTSP to HLS transcoder serving live segments with auto-cleanup of inactive streams after 30 seconds.
+- **Mock HLS Fallback**: Automatically redirects streaming requests to a public test stream (Big Buck Bunny) when cameras are offline or `ffmpeg` is missing.
+- **Dynamic Telemetry & Computer Vision Analysis**: Renders simulated device performance metrics (CPU, Memory, Temp, Storage, Uptime) and 6 simulated image diagnostics (frozen frame, blur, blockage, etc.).
+- **Interactive ONVIF Integration**: Successful ONVIF login updates both volatile `DeviceStore` and persistent `cameraRegistry` details dynamically in the workspace.
+
 ## [1.0.0] - 2026-08-04
 
 ### Added

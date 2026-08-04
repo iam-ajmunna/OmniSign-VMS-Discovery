@@ -6,11 +6,27 @@ import logger from './logger/structuredLogger.js';
 import sessionCoordinator from './services/sessionCoordinator.js';
 import rtspHelper from './utils/rtspHelper.js';
 import onvifAuthService from './services/onvifAuthService.js';
+import devicesRouter from './api/devicesRouter.js';
+import monitoringRouter from './api/monitoringRouter.js';
+import streamRouter from './api/streamRouter.js';
+import healthEngine from './monitoring/healthEngine.js';
+import streamManager from './monitoring/streamManager.js';
+import deviceStore from './aggregator/deviceStore.js';
+import cameraRegistry from './monitoring/cameraRegistry.js';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Device Registry — REST API for Camera Workspace
+app.use('/api/v1/devices', devicesRouter);
+
+// Camera Health Monitoring — REST API
+app.use('/api/v1/monitor', monitoringRouter);
+
+// Camera Live Streaming — HLS
+app.use('/api/v1/stream', streamRouter);
 
 // Health Endpoint
 app.get('/api/v1/health', (req, res) => {
@@ -52,6 +68,20 @@ app.post('/api/v1/camera/onvif-auth', async (req, res) => {
   }
 
   const result = await onvifAuthService.authenticate(ip, port || 80, username || 'admin', password || 'password');
+  
+  if (result.success) {
+    const device = deviceStore.findByIp(ip);
+    if (device) {
+      deviceStore.update(device.id, {
+        vendor: result.manufacturer,
+        model: result.model,
+        firmware: result.firmware,
+        serial: result.serialNumber
+      });
+      cameraRegistry.register(deviceStore.find(device.id));
+    }
+  }
+
   res.json(result);
 });
 
@@ -92,6 +122,8 @@ const gracefulShutdown = (signal) => {
   if (sessionCoordinator.isScanning()) {
     sessionCoordinator.cancelScan();
   }
+  healthEngine.shutdown();
+  streamManager.shutdown();
   server.close(() => {
     logger.info('Server closed. Process terminating.');
     process.exit(0);
