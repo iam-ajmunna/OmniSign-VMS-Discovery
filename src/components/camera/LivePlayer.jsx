@@ -3,8 +3,10 @@ import Hls from 'hls.js';
 
 export default function LivePlayer({ device, health }) {
   const [credentials, setCredentials] = useState({ username: 'admin', password: 'password' });
+  const [streamPath, setStreamPath] = useState('/Streaming/Channels/101');
   const [revealed, setRevealed] = useState(false);
   
+  const [streamType, setStreamType] = useState('direct'); // 'direct' (fMP4 < 200ms) or 'hls'
   const [streamState, setStreamState] = useState('idle'); // idle, connecting, streaming, error, fallback_warning
   const [errorMsg, setErrorMsg] = useState(null);
   const [playlistUrl, setPlaylistUrl] = useState(null);
@@ -17,12 +19,23 @@ export default function LivePlayer({ device, health }) {
 
   const isCameraOffline = health?.overall === 'offline';
   const rtspPort = (device.openPorts || []).find(p => [554, 8554].includes(p.port))?.port || 554;
-  const rtspUrl = `rtsp://${credentials.username}:${credentials.password || '****'}@${device.ip}:${rtspPort}/stream`;
+  const cleanPath = streamPath.startsWith('/') ? streamPath : `/${streamPath}`;
+  const rtspUrl = `rtsp://${credentials.username}:${credentials.password || '****'}@${device.ip}:${rtspPort}${cleanPath}`;
+  const directMp4Url = `/api/v1/stream/${device.id}/live.mp4?rtspUrl=${encodeURIComponent(`rtsp://${credentials.username}:${credentials.password}@${device.ip}:${rtspPort}${cleanPath}`)}`;
 
   // Start the stream
   const startStream = async (forceSimulation = false) => {
     setStreamState('connecting');
     setErrorMsg(null);
+
+    const actualRtspUrl = `rtsp://${credentials.username}:${credentials.password}@${device.ip}:${rtspPort}${cleanPath}`;
+
+    if (streamType === 'direct') {
+      setIsFallback(false);
+      setPlaylistUrl(directMp4Url);
+      setStreamState('streaming');
+      return;
+    }
 
     try {
       const response = await fetch(`/api/v1/stream/${device.id}/start`, {
@@ -31,14 +44,20 @@ export default function LivePlayer({ device, health }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          rtspUrl: `rtsp://${credentials.username}:${credentials.password}@${device.ip}:${rtspPort}/stream`
+          rtspUrl: actualRtspUrl
         }),
       });
 
-      const data = await response.json();
-      if (data.success) {
+      const responseText = await response.text();
+      let data = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        throw new Error(`Server returned non-JSON response (${response.status}): ${responseText || 'Empty response'}`);
+      }
+
+      if (response.ok && data.success) {
         if (data.isFallback && !forceSimulation) {
-          // ffmpeg is missing or offline, display warning first instead of playing cartoon directly
           setIsFallback(true);
           setPlaylistUrl(data.playlistUrl);
           setStreamState('fallback_warning');
@@ -48,7 +67,7 @@ export default function LivePlayer({ device, health }) {
           setStreamState('streaming');
         }
       } else {
-        throw new Error(data.error || 'Failed to initialize transcode session.');
+        throw new Error(data.error || `Failed to initialize stream session (Status ${response.status}).`);
       }
     } catch (err) {
       setErrorMsg(err.message);
@@ -87,21 +106,52 @@ export default function LivePlayer({ device, health }) {
     };
   }, [device.id]);
 
-  // Load HLS stream when streaming state is active
+  // Load Video Stream when streaming state is active
   useEffect(() => {
     if (streamState !== 'streaming' || !playlistUrl || !videoRef.current) return;
 
     const video = videoRef.current;
+
+    // Mode 1: Direct Real-Time fMP4 Stream (< 200ms latency, Zero-Disk)
+    if (playlistUrl.includes('.mp4')) {
+      video.src = playlistUrl;
+      video.play().catch(e => console.warn('AutoPlay blocked by browser:', e));
+      return () => {
+        video.src = '';
+      };
+    }
+
+    // Mode 2: HLS Playlist Stream (.m3u8)
     if (Hls.isSupported()) {
       const hls = new Hls({
-        maxBufferSize: 0,
-        maxBufferLength: 2,
-        liveSyncPosition: 1,
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 0,
+        maxBufferLength: 1,
+        maxMaxBufferLength: 2,
+        liveSyncDurationCount: 1,
+        liveMaxLatencyDurationCount: 2,
+        liveDurationInfinity: true,
+        highBufferWatchdogPeriod: 1,
+        manifestLoadingTimeOut: 5000,
+        levelLoadingTimeOut: 5000,
+        fragLoadingTimeOut: 5000,
       });
       hlsRef.current = hls;
 
       hls.loadSource(playlistUrl);
       hls.attachMedia(video);
+
+      // Auto catch-up if playback falls behind live edge by > 2.5s
+      const timeUpdateHandler = () => {
+        if (video.buffered.length > 0) {
+          const liveEdge = video.buffered.end(video.buffered.length - 1);
+          if (liveEdge - video.currentTime > 2.5) {
+            video.currentTime = liveEdge - 0.5;
+          }
+        }
+      };
+      video.addEventListener('timeupdate', timeUpdateHandler);
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
@@ -120,19 +170,20 @@ export default function LivePlayer({ device, health }) {
           }
         }
       });
+
+      return () => {
+        video.removeEventListener('timeupdate', timeUpdateHandler);
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+          hlsRef.current = null;
+        }
+      };
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = playlistUrl;
     } else {
       setErrorMsg('HLS streaming is not supported in this browser.');
       setStreamState('error');
     }
-
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-    };
   }, [streamState, playlistUrl]);
 
   return (
@@ -190,11 +241,12 @@ export default function LivePlayer({ device, health }) {
               Browser playback requires transcoding the RTSP video stream to HLS format.<br />
               Enter device login details below to initialize the transcoder.
             </p>
-            <div className="player-cred-row">
+            <div className="player-cred-row" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
               <input
                 className="ws-input"
                 type="text"
                 placeholder="Username"
+                style={{ width: '130px' }}
                 value={credentials.username}
                 onChange={e => setCredentials(p => ({ ...p, username: e.target.value }))}
               />
@@ -202,6 +254,7 @@ export default function LivePlayer({ device, health }) {
                 className="ws-input"
                 type={revealed ? 'text' : 'password'}
                 placeholder="Password"
+                style={{ width: '130px' }}
                 value={credentials.password}
                 onChange={e => setCredentials(p => ({ ...p, password: e.target.value }))}
               />
@@ -209,8 +262,47 @@ export default function LivePlayer({ device, health }) {
                 {revealed ? 'Hide' : 'Show'}
               </button>
             </div>
-            <button className="btn-primary" style={{ marginTop: '0.5rem' }} onClick={() => startStream(false)}>
-              Start HLS Transcoder
+            <div className="player-cred-row" style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Stream Path:</span>
+              <input
+                className="ws-input"
+                type="text"
+                placeholder="/Streaming/Channels/101"
+                style={{ width: '240px', fontFamily: 'monospace' }}
+                value={streamPath}
+                onChange={e => setStreamPath(e.target.value)}
+              />
+              <select
+                className="ws-input"
+                style={{ width: '140px' }}
+                onChange={e => e.target.value && setStreamPath(e.target.value)}
+                defaultValue=""
+              >
+                <option value="" disabled>Presets...</option>
+                <option value="/Streaming/Channels/101">Hikvision Main</option>
+                <option value="/cam/realmonitor?channel=1&subtype=0">Dahua Main</option>
+                <option value="/axis-media/media.amp">Axis Main</option>
+                <option value="/unicast/c1/s0/live">Uniview Main</option>
+                <option value="/h264Preview_01_main">Reolink Main</option>
+                <option value="/stream1">TP-Link Main</option>
+                <option value="/live/main">Generic Main</option>
+                <option value="/stream">Default /stream</option>
+              </select>
+            </div>
+            <div className="player-cred-row" style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Stream Engine:</span>
+              <select
+                className="ws-input"
+                style={{ width: '230px', fontWeight: 'bold', color: 'var(--color-primary)' }}
+                value={streamType}
+                onChange={e => setStreamType(e.target.value)}
+              >
+                <option value="direct">⚡ Real-Time fMP4 (Sub-200ms, Zero-Disk)</option>
+                <option value="hls">📼 Low-Latency HLS (.m3u8)</option>
+              </select>
+            </div>
+            <button className="btn-primary" style={{ marginTop: '0.75rem' }} onClick={() => startStream(false)}>
+              Start Live Stream
             </button>
             <div className="player-url-preview">
               <span className="info-label">Source URL Target</span>

@@ -9,6 +9,7 @@ import PerformancePanel from '../components/camera/PerformancePanel.jsx';
 import EventTimeline from '../components/camera/EventTimeline.jsx';
 import LivePlayer from '../components/camera/LivePlayer.jsx';
 import HealthBadge from '../components/camera/HealthBadge.jsx';
+import HealthReportModal from '../components/camera/HealthReportModal.jsx';
 
 /**
  * Camera Workspace Page.
@@ -23,6 +24,7 @@ export default function CameraPage() {
   const [device, setDevice] = useState(location.state?.device || null);
   const [loading, setLoading] = useState(!device);
   const [error, setError] = useState(null);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Fetch device from API if not passed via navigation state (e.g. page refresh)
   useEffect(() => {
@@ -88,6 +90,13 @@ export default function CameraPage() {
             <span className="monitor-error-chip" title={healthError}>⚠ Monitor Error</span>
           )}
           <HealthBadge status={health?.overall || 'pending'} />
+          <button 
+            className="btn-primary btn-tiny" 
+            style={{ padding: '0.4rem 0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.35rem' }} 
+            onClick={() => setShowReportModal(true)}
+          >
+            📋 Generate Health Report
+          </button>
         </div>
       </div>
 
@@ -114,6 +123,15 @@ export default function CameraPage() {
         </div>
 
       </div>
+
+      {/* Structured Camera Health Report Modal */}
+      {showReportModal && (
+        <HealthReportModal 
+          device={device} 
+          health={health} 
+          onClose={() => setShowReportModal(false)} 
+        />
+      )}
     </div>
   );
 }

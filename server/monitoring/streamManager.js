@@ -2,6 +2,7 @@ import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import ffmpegStatic from 'ffmpeg-static';
 import logger from '../logger/structuredLogger.js';
 import cameraRegistry from './cameraRegistry.js';
 
@@ -22,11 +23,29 @@ if (fs.existsSync(STREAMS_DIR)) {
 fs.mkdirSync(STREAMS_DIR, { recursive: true });
 
 let ffmpegAvailable = false;
-try {
-  execSync('which ffmpeg');
-  ffmpegAvailable = true;
-  logger.info('[StreamManager] ffmpeg detected and available.');
-} catch (e) {
+let ffmpegBinPath = 'ffmpeg';
+
+const candidatePaths = [
+  ffmpegStatic,
+  'ffmpeg',
+  '/opt/homebrew/bin/ffmpeg',
+  '/usr/local/bin/ffmpeg',
+  '/usr/bin/ffmpeg'
+].filter(Boolean);
+
+for (const bin of candidatePaths) {
+  try {
+    execSync(`"${bin}" -version`, { stdio: 'ignore' });
+    ffmpegAvailable = true;
+    ffmpegBinPath = bin;
+    logger.info(`[StreamManager] ffmpeg detected and available at: ${bin}`);
+    break;
+  } catch (e) {
+    // ignore and check next path
+  }
+}
+
+if (!ffmpegAvailable) {
   logger.warn('[StreamManager] ffmpeg NOT detected. Streaming will run in fallback mock/demo mode.');
 }
 
@@ -77,7 +96,7 @@ async function startStream(cameraId, rtspUrl) {
   }
 
   // Fallback mode if ffmpeg is missing, or if rtspUrl is invalid/offline
-  const useFallback = !ffmpegAvailable || !rtspUrl || rtspUrl.includes('192.168.0.83') || rtspUrl.includes('offline');
+  const useFallback = !ffmpegAvailable || !rtspUrl || rtspUrl.includes('offline');
 
   if (useFallback) {
     logger.info(`[StreamManager] Initializing fallback/demo stream for camera ${cameraId}`);
@@ -97,34 +116,42 @@ async function startStream(cameraId, rtspUrl) {
   const playlistPath = path.join(cameraOutputDir, 'index.m3u8');
   const segmentPathPattern = path.join(cameraOutputDir, 'seg_%d.ts');
 
-  // Command: ffmpeg -fflags nobuffer -rtsp_transport tcp -i <rtspUrl> -c:v copy -an -f hls -hls_time 2 -hls_list_size 5 -hls_flags delete_segments <playlistPath>
+  // Optimized low-latency HLS FFmpeg args (1s segments, 3-segment window, low-delay flags)
   const args = [
-    '-fflags', 'nobuffer',
+    '-fflags', 'nobuffer+discardcorrupt',
+    '-flags', 'low_delay',
     '-rtsp_transport', 'tcp',
     '-i', rtspUrl,
     '-c:v', 'copy',
     '-an',
     '-f', 'hls',
-    '-hls_time', '2',
-    '-hls_list_size', '5',
-    '-hls_flags', 'delete_segments',
+    '-hls_time', '1',
+    '-hls_list_size', '3',
+    '-hls_flags', 'delete_segments+omit_endlist+split_by_time',
     '-hls_segment_filename', segmentPathPattern,
     playlistPath
   ];
 
-  const proc = spawn('ffmpeg', args);
+  const proc = spawn(ffmpegBinPath, args);
+
+  let stderrBuffer = '';
+  let ffmpegExited = false;
 
   proc.stderr.on('data', (data) => {
-    logger.debug(`[FFMPEG ${cameraId}] ${data.toString().trim()}`);
+    const msg = data.toString();
+    stderrBuffer += msg;
+    logger.debug(`[FFMPEG ${cameraId}] ${msg.trim()}`);
   });
 
   proc.on('close', (code) => {
     logger.info(`[StreamManager] ffmpeg process for ${cameraId} exited with code ${code}`);
+    ffmpegExited = true;
     activeStreams.delete(cameraId);
   });
 
   proc.on('error', (err) => {
     logger.error(`[StreamManager] ffmpeg error for ${cameraId}: ${err.message}`);
+    ffmpegExited = true;
     activeStreams.delete(cameraId);
   });
 
@@ -136,14 +163,33 @@ async function startStream(cameraId, rtspUrl) {
     isFallback: false
   });
 
-  // Wait a bit for the index.m3u8 to be generated (max 5s)
+  // Wait a bit for the index.m3u8 to be generated (max 10s)
   let attempts = 0;
-  while (attempts < 25) {
+  while (attempts < 50) {
     if (fs.existsSync(playlistPath)) {
+      break;
+    }
+    if (ffmpegExited) {
       break;
     }
     await new Promise(resolve => setTimeout(resolve, 200));
     attempts++;
+  }
+
+  if (!fs.existsSync(playlistPath)) {
+    stopStream(cameraId);
+    let detailedErr = 'FFmpeg failed to create stream playlist.';
+    if (stderrBuffer.includes('401 Unauthorized') || stderrBuffer.includes('authorization failed')) {
+      detailedErr = 'RTSP Authentication Failed (401 Unauthorized). Please check camera username & password.';
+    } else if (stderrBuffer.includes('Connection refused')) {
+      detailedErr = 'Connection refused on RTSP port. Please verify camera IP and port.';
+    } else if (stderrBuffer.includes('Server returned 404') || stderrBuffer.includes('method DESCRIBE failed')) {
+      detailedErr = 'RTSP Stream Path not found on camera. Try selecting a different stream path.';
+    } else if (stderrBuffer.length > 0) {
+      const lines = stderrBuffer.trim().split('\n').slice(-3).join(' ');
+      detailedErr = `FFmpeg transcoding failed: ${lines}`;
+    }
+    throw new Error(detailedErr);
   }
 
   return { playlistUrl: `/api/v1/stream/${cameraId}/index.m3u8`, isFallback: false };
@@ -198,6 +244,55 @@ function getStream(cameraId) {
 }
 
 /**
+ * Streams real-time fMP4 video directly from RTSP to express response stream (zero disk I/O, ~200ms latency).
+ * @param {string} cameraId
+ * @param {string} rtspUrl
+ * @param {import('express').Response} res
+ */
+function streamDirectMp4(cameraId, rtspUrl, res) {
+  logger.info(`[StreamManager] Starting direct fMP4 stream for ${cameraId}`);
+
+  res.setHeader('Content-Type', 'video/mp4');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  const args = [
+    '-loglevel', 'quiet',
+    '-fflags', 'nobuffer+discardcorrupt',
+    '-flags', 'low_delay',
+    '-rtsp_transport', 'tcp',
+    '-i', rtspUrl,
+    '-c:v', 'copy',
+    '-an',
+    '-f', 'mp4',
+    '-movflags', 'empty_moov+default_base_moof+frag_every_frame+skip_sidx+skip_trailer',
+    'pipe:1'
+  ];
+
+  const proc = spawn(ffmpegBinPath, args);
+
+  proc.stdout.pipe(res);
+
+  let isCleanedUp = false;
+  const cleanup = () => {
+    if (isCleanedUp) return;
+    isCleanedUp = true;
+    try {
+      proc.stdout.unpipe(res);
+      proc.kill('SIGTERM');
+    } catch (e) {}
+    logger.info(`[StreamManager] Closed direct fMP4 stream for ${cameraId}`);
+  };
+
+  res.on('close', cleanup);
+  res.on('error', cleanup);
+  proc.on('close', cleanup);
+  proc.on('error', cleanup);
+}
+
+/**
  * Cleans up all active streams on server shutdown.
  */
 function shutdown() {
@@ -210,6 +305,7 @@ function shutdown() {
 export default {
   startStream,
   stopStream,
+  streamDirectMp4,
   touchStream,
   getStream,
   shutdown,

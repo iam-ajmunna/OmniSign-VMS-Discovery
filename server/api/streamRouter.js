@@ -46,6 +46,21 @@ router.post('/:cameraId/stop', (req, res) => {
 });
 
 /**
+ * GET /api/v1/stream/:cameraId/live.mp4
+ * Real-time zero-disk fMP4 stream directly piped from FFmpeg (sub-300ms latency).
+ */
+router.get('/:cameraId/live.mp4', (req, res) => {
+  const { cameraId } = req.params;
+  const rtspUrl = req.query.rtspUrl;
+
+  if (!rtspUrl) {
+    return res.status(400).send('rtspUrl query parameter required');
+  }
+
+  streamManager.streamDirectMp4(cameraId, rtspUrl, res);
+});
+
+/**
  * GET /api/v1/stream/:cameraId/:filename
  * Serves the HLS playlist (.m3u8) or segments (.ts).
  * If the stream is in fallback/demo mode, it redirects the playlist request to a public test stream.
